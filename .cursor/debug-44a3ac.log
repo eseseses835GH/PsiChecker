@@ -1,0 +1,4 @@
+{"sessionId":"44a3ac","location":"llmGradingService.ts:buildDraftGrade","message":"buildDraftGrade_start","data":{"hypothesisId":"H1","hasGroqKey":true,"hasOpenaiKey":false,"hasAiGradingKey":true,"allowHeuristic":true},"timestamp":1774348719654,"runId":"pre-fix"}
+{"sessionId":"44a3ac","location":"llmGradingService.ts:gradeWithOpenAiCompatibleChat","message":"llm_request_start","data":{"hypothesisId":"H2-H5","provider":"groq","model":"llama-3.3-70b-versatile"},"timestamp":1774348719658,"runId":"pre-fix"}
+{"sessionId":"44a3ac","location":"llmGradingService.ts:gradeWithOpenAiCompatibleChat","message":"llm_success","data":{"hypothesisId":"H2-H4","provider":"groq"},"timestamp":1774348720676,"runId":"pre-fix"}
+{"sessionId":"44a3ac","location":"llmGradingService.ts:buildDraftGrade","message":"after_tryGroqThenOpenAi","data":{"hypothesisId":"H2-H4","gotLlmResult":true,"gradingSource":"groq"},"timestamp":1774348720677,"runId":"pre-fix"}

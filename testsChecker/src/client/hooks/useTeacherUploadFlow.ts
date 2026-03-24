@@ -40,6 +40,12 @@ const DEFAULT_CRITERIA: RubricCriterionInput[] = [
 
 type FlowStep = "rubric" | "upload" | "results";
 
+/** Submissions + exercise snapshot for opening draft review with source code. */
+export type ResultsContext = {
+  exercise: ExerciseInput;
+  submissions: ParsedSubmission[];
+};
+
 export type UploadAttributionMode = "explicit" | "infer";
 
 export type ExerciseFormState = {
@@ -72,6 +78,8 @@ export type TeacherFlowState = {
     submissions: ParsedSubmission[];
     batchRowIds: string[];
   } | null;
+  /** Set when drafts are produced so each card can open code + line comments. */
+  resultsContext: ResultsContext | null;
 };
 
 function initialExercise(): ExerciseInput {
@@ -172,6 +180,7 @@ export function useTeacherUploadFlow() {
     explicitStudentName: "",
     llmUnavailableMessage: null,
     pendingLocalGrade: null,
+    resultsContext: null,
   });
 
   const aggregates = useMemo(() => buildAggregates(state.studentRecords), [state.studentRecords]);
@@ -374,6 +383,7 @@ export function useTeacherUploadFlow() {
       grading: false,
       error: null,
       drafts: [],
+      resultsContext: null,
       llmUnavailableMessage: null,
       pendingLocalGrade: null,
     }));
@@ -452,6 +462,7 @@ export function useTeacherUploadFlow() {
         ...prev,
         step: "results",
         drafts,
+        resultsContext: { exercise: exerciseSnapshot, submissions },
         grading: false,
         uploading: false,
         error: null,
@@ -542,6 +553,7 @@ export function useTeacherUploadFlow() {
         ...prev,
         step: "results",
         drafts,
+        resultsContext: { exercise: pending.exercise, submissions: pending.submissions },
         grading: false,
         error: null,
         pendingLocalGrade: null,
@@ -596,6 +608,7 @@ export function useTeacherUploadFlow() {
       step: "rubric",
       drafts: [],
       importedCount: 0,
+      resultsContext: null,
       llmUnavailableMessage: null,
       pendingLocalGrade: null,
       error: null,

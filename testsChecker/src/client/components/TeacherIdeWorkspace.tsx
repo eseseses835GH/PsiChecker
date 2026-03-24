@@ -2,12 +2,14 @@
 
 import type { ComponentProps } from "react";
 import { useEffect, useRef, useState } from "react";
+import type { SubmissionDraftResult } from "@/types/domain";
 import { PRESET_LANGUAGES, isPresetLanguage } from "@/client/constants/languages";
 import { useTheme, THEME_OPTIONS, type ThemeId } from "@/client/context/ThemeContext";
 import { ExerciseLibrary } from "@/client/components/ExerciseLibrary";
+import { DraftReviewModal } from "@/client/components/DraftReviewModal";
 import { GradingFunLoader } from "@/client/components/GradingFunLoader";
 import { StudentDashboard } from "@/client/components/StudentDashboard";
-import { useTeacherUploadFlow } from "@/client/hooks/useTeacherUploadFlow";
+import { useTeacherUploadFlow, type ResultsContext } from "@/client/hooks/useTeacherUploadFlow";
 import type { ExerciseInput, RubricCriterionInput } from "@/types/domain";
 
 type NavId = "dashboard" | "exercises" | "upload" | "results";
@@ -632,17 +634,25 @@ function UploadPane({
 
 function ResultsPane({
   drafts,
+  resultsContext,
   importedCount,
   onBackToLibrary,
   onOpenDashboard,
   exerciseTitle,
 }: {
   drafts: ReturnType<typeof useTeacherUploadFlow>["state"]["drafts"];
+  resultsContext: ResultsContext | null;
   importedCount: number;
   onBackToLibrary: () => void;
   onOpenDashboard: () => void;
   exerciseTitle: string;
 }) {
+  const [reviewEntry, setReviewEntry] = useState<SubmissionDraftResult | null>(null);
+  const reviewSubmission =
+    reviewEntry && resultsContext
+      ? resultsContext.submissions.find((s) => s.studentRef === reviewEntry.studentRef)
+      : undefined;
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -678,38 +688,70 @@ function ResultsPane({
       ) : null}
 
       <ul className="space-y-3">
-        {drafts.map((entry) => (
-          <li
-            key={entry.studentRef}
-            className="rounded-xl border border-app app-surface p-4 shadow-sm"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-medium app-text">
-                {entry.displayName ?? entry.studentRef}
-              </span>
-              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-                ⭐ {entry.draft.totalScore.toFixed(1)} pts
-              </span>
-            </div>
-            {entry.gradingSource === "heuristic" ? (
-              <p className="mt-2 text-xs font-medium text-amber-800">
-                🔧 Local heuristic (no AI) — rough draft only.
-              </p>
-            ) : null}
-            <p className="mt-2 text-sm app-text-secondary">{entry.draft.summary}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {entry.draft.criteria.map((c) => (
-                <span
-                  key={`${entry.studentRef}-${c.criterionId}`}
-                  className="rounded-md app-bg-subtle px-2 py-1 text-xs app-text-secondary"
-                >
-                  {c.criterionId}: {c.points.toFixed(1)}
-                </span>
-              ))}
-            </div>
-          </li>
-        ))}
+        {drafts.map((entry) => {
+          const submission = resultsContext?.submissions.find((s) => s.studentRef === entry.studentRef);
+          const canOpenReview = Boolean(submission && resultsContext);
+          return (
+            <li key={entry.studentRef}>
+              <button
+                type="button"
+                disabled={!canOpenReview}
+                onClick={() => {
+                  if (canOpenReview) setReviewEntry(entry);
+                }}
+                className={`w-full rounded-xl border border-app p-4 text-left shadow-sm transition-colors ${
+                  canOpenReview
+                    ? "app-surface cursor-pointer hover:border-[var(--theme-primary)]/45 hover:shadow-md active:opacity-95"
+                    : "app-surface cursor-not-allowed opacity-80"
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium app-text">
+                    {entry.displayName ?? entry.studentRef}
+                  </span>
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                    ⭐ {entry.draft.totalScore.toFixed(1)} pts
+                  </span>
+                </div>
+                {canOpenReview ? (
+                  <p className="mt-1 text-[11px] font-medium app-text-subtle">
+                    Open for code + comments →
+                  </p>
+                ) : (
+                  <p className="mt-1 text-[11px] app-text-muted">Source files not available for review.</p>
+                )}
+                {entry.gradingSource === "heuristic" ? (
+                  <p className="mt-2 text-xs font-medium text-amber-800">
+                    🔧 Local heuristic (no AI) — rough draft only.
+                  </p>
+                ) : null}
+                <p className="mt-2 text-sm app-text-secondary">{entry.draft.summary}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {entry.draft.criteria.map((c) => (
+                    <span
+                      key={`${entry.studentRef}-${c.criterionId}`}
+                      className="rounded-md app-bg-subtle px-2 py-1 text-xs app-text-secondary"
+                    >
+                      {c.criterionId}: {c.points.toFixed(1)}
+                    </span>
+                  ))}
+                </div>
+              </button>
+            </li>
+          );
+        })}
       </ul>
+
+      {reviewEntry && reviewSubmission && resultsContext ? (
+        <DraftReviewModal
+          key={reviewEntry.studentRef}
+          open
+          onClose={() => setReviewEntry(null)}
+          draft={reviewEntry}
+          submission={reviewSubmission}
+          exercise={resultsContext.exercise}
+        />
+      ) : null}
     </div>
   );
 }
@@ -914,6 +956,7 @@ export function TeacherIdeWorkspace() {
           {nav === "results" && canUseSubmissions && (
             <ResultsPane
               drafts={state.drafts}
+              resultsContext={state.resultsContext}
               importedCount={state.importedCount}
               exerciseTitle={activeTitle}
               onBackToLibrary={() => {

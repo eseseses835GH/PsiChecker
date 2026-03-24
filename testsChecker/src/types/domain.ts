@@ -74,12 +74,27 @@ export type AiCriterionFeedback = {
   evidence: string[];
 };
 
+/** Inline review comment pinned to a source line (Git-style feedback). */
+export type AiCodeLineComment = {
+  /** Path as in submission.files[].path (model should reuse exact paths from the prompt). */
+  path: string;
+  /** 1-based start line in that file. */
+  line: number;
+  /** Optional inclusive end line for a small range; omit for a single line. */
+  lineEnd?: number;
+  message: string;
+  /** Optional link to exercise.rubric.criteria[].id. */
+  criterionId?: string;
+};
+
 export type AiDraftFeedback = {
   totalScore: number;
   confidence: number;
   summary: string;
   criteria: AiCriterionFeedback[];
   warnings: string[];
+  /** Line-anchored comments; may be empty for heuristic or short model outputs. */
+  lineComments: AiCodeLineComment[];
 };
 
 export type SubmissionDraftResult = {
@@ -88,13 +103,13 @@ export type SubmissionDraftResult = {
   displayName?: string;
   draft: AiDraftFeedback;
   /** How this draft was produced (when the server sends it). */
-  gradingSource?: "openai" | "heuristic";
+  gradingSource?: "groq" | "openai" | "heuristic";
 };
 
 export type GradeDraftRequest = {
   exercise: ExerciseInput;
   submissions: ParsedSubmission[];
-  /** When true and OpenAI is not configured, use the built-in heuristic estimate. */
+  /** When true and no LLM API key is configured, use the built-in heuristic estimate. */
   useLocalHeuristic?: boolean;
 };
 

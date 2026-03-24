@@ -1,22 +1,79 @@
 import { NextResponse } from "next/server";
 import { rubricMatchesAssignmentMax } from "@/server/lib/exerciseValidation";
+import { clientKeyFromRequest, rateLimitGradeRequest } from "@/server/lib/gradeRateLimit";
 import { runWithConcurrency } from "@/server/lib/promisePool";
-import { buildDraftGrade, hasOpenAiApiKey } from "@/server/services/llmGradingService";
+import { buildDraftGrade, hasAiGradingApiKey } from "@/server/services/llmGradingService";
 import type { GradeDraftRequest, GradeDraftResponse } from "@/types/domain";
 
 export const runtime = "nodejs";
 
+function methodNotAllowed() {
+  return NextResponse.json(
+    { error: "Method not allowed. Use POST with a JSON body." },
+    { status: 405, headers: { Allow: "POST" } },
+  );
+}
+
+export function GET() {
+  return methodNotAllowed();
+}
+
+export function PUT() {
+  return methodNotAllowed();
+}
+
+export function PATCH() {
+  return methodNotAllowed();
+}
+
+export function DELETE() {
+  return methodNotAllowed();
+}
+
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as GradeDraftRequest;
-    if (!payload.exercise || payload.submissions.length === 0) {
+    const limit = rateLimitGradeRequest(clientKeyFromRequest(request));
+    if (!limit.ok) {
       return NextResponse.json(
-        { error: "Exercise and at least one submission are required." },
+        { error: "Too many grading requests. Try again shortly." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limit.retryAfterSec) },
+        },
+      );
+    }
+
+    const text = await request.text();
+    if (!text || !text.trim()) {
+      return NextResponse.json({ error: "Request body is required and cannot be empty." }, { status: 400 });
+    }
+
+    let payload: unknown;
+    try {
+      payload = JSON.parse(text) as unknown;
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    }
+
+    if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "Body must be a JSON object." }, { status: 400 });
+    }
+
+    const body = payload as Partial<GradeDraftRequest>;
+    if (!body.exercise || typeof body.exercise !== "object" || Array.isArray(body.exercise)) {
+      return NextResponse.json({ error: "Field 'exercise' must be an object." }, { status: 400 });
+    }
+
+    if (!Array.isArray(body.submissions) || body.submissions.length === 0) {
+      return NextResponse.json(
+        { error: "Field 'submissions' must be a non-empty array." },
         { status: 400 },
       );
     }
 
-    if (!rubricMatchesAssignmentMax(payload.exercise)) {
+    const gradeRequest = body as GradeDraftRequest;
+
+    if (!rubricMatchesAssignmentMax(gradeRequest.exercise)) {
       return NextResponse.json(
         {
           error:
@@ -26,23 +83,23 @@ export async function POST(request: Request) {
       );
     }
 
-    const useLocalHeuristic = Boolean(payload.useLocalHeuristic);
-    const allowHeuristic = hasOpenAiApiKey() || useLocalHeuristic;
+    const useLocalHeuristic = Boolean(gradeRequest.useLocalHeuristic);
+    const allowHeuristic = hasAiGradingApiKey() || useLocalHeuristic;
 
     if (!allowHeuristic) {
       const response: GradeDraftResponse = {
         status: "llm_unavailable",
         reason: "missing_api_key",
         message:
-          "AI grading is not available: OPENAI_API_KEY is not set on the server. Configure it for full AI scoring, or use a local heuristic estimate below.",
+          "AI grading is not available: set GROQ_API_KEY or OPENAI_API_KEY in the server environment (e.g. Vercel project settings), or use a local heuristic estimate below.",
       };
       return NextResponse.json(response);
     }
 
-    const drafts = await runWithConcurrency(payload.submissions, 5, async (submission) => {
+    const drafts = await runWithConcurrency(gradeRequest.submissions, 5, async (submission) => {
       const outcome = await buildDraftGrade(
         {
-          exercise: payload.exercise,
+          exercise: gradeRequest.exercise,
           submission,
         },
         { allowHeuristic },

@@ -27,6 +27,62 @@ function formatDate(iso: string): string {
   }
 }
 
+function ExerciseCardActions({
+  ex,
+  onEdit,
+  onSelectForGrading,
+  onPreview,
+  onDelete,
+  className,
+}: {
+  ex: SavedExercise;
+  onEdit: (id: string) => void;
+  onSelectForGrading: (id: string) => void;
+  onPreview: (ex: SavedExercise) => void;
+  onDelete: (id: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <button
+        type="button"
+        onClick={() => onEdit(ex.id)}
+        className="rounded-lg app-surface px-3 py-1.5 text-xs font-semibold app-text shadow hover:bg-[var(--theme-bg-subtle)]"
+      >
+        ✏️ Edit
+      </button>
+      <button
+        type="button"
+        onClick={() => onSelectForGrading(ex.id)}
+        className="btn-theme-primary rounded-lg px-3 py-1.5 text-xs font-semibold shadow"
+      >
+        📤 Submit here
+      </button>
+      <button
+        type="button"
+        onClick={() => onPreview(ex)}
+        className="rounded-lg app-surface px-3 py-1.5 text-xs font-semibold app-text shadow hover:bg-[var(--theme-bg-subtle)]"
+      >
+        👁️ Preview
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          if (
+            typeof window !== "undefined" &&
+            window.confirm("Delete this exercise from the library?")
+          ) {
+            onDelete(ex.id);
+          }
+        }}
+        className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100"
+      >
+        🗑️ Delete
+      </button>
+    </div>
+  );
+}
+
 export function ExerciseLibrary({
   exercises,
   totalCount,
@@ -51,7 +107,9 @@ export function ExerciseLibrary({
         </h2>
         <p className="mt-1 text-sm app-text-secondary">
           Build rubrics, save them as cards, then choose one to collect submissions.{" "}
-          <span className="font-medium app-text">✨</span> Hover a card for actions.
+          <span className="font-medium app-text">✨</span>{" "}
+          <span className="md:hidden">Use the buttons on each card.</span>
+          <span className="hidden md:inline">Hover a card for actions.</span>
         </p>
       </div>
 
@@ -129,48 +187,26 @@ export function ExerciseLibrary({
                   </p>
                 </div>
 
+                <ExerciseCardActions
+                  ex={ex}
+                  onEdit={onEdit}
+                  onSelectForGrading={onSelectForGrading}
+                  onPreview={setPreview}
+                  onDelete={onDelete}
+                  className="relative z-10 mt-3 flex flex-wrap gap-2 md:hidden"
+                />
+
                 <div
-                  className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-2xl bg-zinc-900/75 opacity-0 backdrop-blur-[2px] transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
+                  className="pointer-events-none absolute inset-0 hidden flex-col items-center justify-center gap-2 rounded-2xl bg-zinc-900/75 opacity-0 backdrop-blur-[2px] transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100 md:flex"
                 >
-                  <div className="flex flex-wrap justify-center gap-2 px-3">
-                    <button
-                      type="button"
-                      onClick={() => onEdit(ex.id)}
-                      className="rounded-lg app-surface px-3 py-1.5 text-xs font-semibold app-text shadow hover:bg-[var(--theme-bg-subtle)]"
-                    >
-                      ✏️ Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onSelectForGrading(ex.id);
-                      }}
-                      className="btn-theme-primary rounded-lg px-3 py-1.5 text-xs font-semibold shadow"
-                    >
-                      📤 Submit here
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPreview(ex)}
-                      className="rounded-lg app-surface px-3 py-1.5 text-xs font-semibold app-text shadow hover:bg-[var(--theme-bg-subtle)]"
-                    >
-                      👁️ Preview
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (
-                          typeof window !== "undefined" &&
-                          window.confirm("Delete this exercise from the library?")
-                        ) {
-                          onDelete(ex.id);
-                        }
-                      }}
-                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100"
-                    >
-                      🗑️ Delete
-                    </button>
-                  </div>
+                  <ExerciseCardActions
+                    ex={ex}
+                    onEdit={onEdit}
+                    onSelectForGrading={onSelectForGrading}
+                    onPreview={setPreview}
+                    onDelete={onDelete}
+                    className="pointer-events-auto flex flex-wrap justify-center gap-2 px-3"
+                  />
                 </div>
               </div>
             </li>
@@ -215,7 +251,7 @@ function ExercisePreviewModal({
       aria-modal
       aria-labelledby="preview-title"
     >
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-app app-surface p-6 shadow-2xl">
+      <div className="max-h-[min(90dvh,calc(100dvh-2rem))] w-full max-w-2xl overflow-y-auto rounded-2xl border border-app app-surface p-4 shadow-2xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <h2 id="preview-title" className="text-lg font-bold app-text">
             👁️ {exercise.title}

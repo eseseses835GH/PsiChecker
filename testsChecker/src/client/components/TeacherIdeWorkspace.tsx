@@ -12,6 +12,31 @@ import type { ExerciseInput, RubricCriterionInput } from "@/types/domain";
 
 type NavId = "dashboard" | "exercises" | "upload" | "results";
 
+const NAV_ITEMS: {
+  id: NavId;
+  label: string;
+  hint: string;
+  emoji: string;
+  needsExercise?: boolean;
+}[] = [
+  { id: "dashboard", label: "Students", hint: "Grades & activity", emoji: "👥" },
+  { id: "exercises", label: "Exercises", hint: "Library & rubrics", emoji: "📚" },
+  {
+    id: "upload",
+    label: "Submissions",
+    hint: "Upload student work",
+    emoji: "📤",
+    needsExercise: true,
+  },
+  {
+    id: "results",
+    label: "Drafts",
+    hint: "Latest AI grades",
+    emoji: "📋",
+    needsExercise: true,
+  },
+];
+
 function updateCriterion(
   exercise: ExerciseInput,
   index: number,
@@ -69,28 +94,8 @@ function SideNav({
   onSelect: (id: NavId) => void;
   canUseSubmissions: boolean;
 }) {
-  const items: { id: NavId; label: string; hint: string; emoji: string; needsExercise?: boolean }[] =
-    [
-      { id: "dashboard", label: "Students", hint: "Grades & activity", emoji: "👥" },
-      { id: "exercises", label: "Exercises", hint: "Library & rubrics", emoji: "📚" },
-      {
-        id: "upload",
-        label: "Submissions",
-        hint: "Upload student work",
-        emoji: "📤",
-        needsExercise: true,
-      },
-      {
-        id: "results",
-        label: "Drafts",
-        hint: "Latest AI grades",
-        emoji: "📋",
-        needsExercise: true,
-      },
-    ];
-
   return (
-    <aside className="app-sidebar flex w-56 shrink-0 flex-col border-r border-app">
+    <aside className="app-sidebar hidden w-56 shrink-0 flex-col border-r border-app md:flex">
       <div className="border-b border-app px-4 py-4">
         <p className="text-[11px] font-semibold uppercase tracking-wider app-text-subtle">
           AutoGrade
@@ -98,7 +103,7 @@ function SideNav({
         <p className="mt-0.5 text-sm font-semibold app-text">🎓 Classroom</p>
       </div>
       <nav className="flex flex-col gap-0.5 p-2">
-        {items.map((item) => {
+        {NAV_ITEMS.map((item) => {
           const blocked = item.needsExercise && !canUseSubmissions;
           const highlight = active === item.id;
           return (
@@ -133,6 +138,62 @@ function SideNav({
         })}
       </nav>
     </aside>
+  );
+}
+
+function MobileBottomNav({
+  active,
+  onSelect,
+  canUseSubmissions,
+}: {
+  active: NavId;
+  onSelect: (id: NavId) => void;
+  canUseSubmissions: boolean;
+}) {
+  return (
+    <nav
+      className="app-sidebar fixed bottom-0 left-0 right-0 z-30 border-t border-app md:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      aria-label="Primary"
+    >
+      <div className="flex items-stretch justify-between gap-0.5 px-1 pt-1">
+        {NAV_ITEMS.map((item) => {
+          const blocked = item.needsExercise && !canUseSubmissions;
+          const highlight = active === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              disabled={blocked}
+              title={
+                blocked
+                  ? "Pick an exercise from the library first (use Submit here on a card)"
+                  : item.hint
+              }
+              onClick={() => {
+                if (!blocked) {
+                  onSelect(item.id);
+                }
+              }}
+              className={`flex min-w-0 flex-1 touch-manipulation flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-center transition-colors active:opacity-90 ${
+                blocked
+                  ? "cursor-not-allowed opacity-40"
+                  : highlight
+                    ? "surface-muted app-text"
+                    : "app-text-secondary"
+              }`}
+            >
+              <span className="text-lg leading-none" aria-hidden>
+                {item.emoji}
+              </span>
+              <span className="max-w-full truncate text-[10px] font-semibold leading-tight">
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 
@@ -222,7 +283,7 @@ function RubricPane({
                 onChange={(e) =>
                   onChange({ ...exercise, maxPoints: Number(e.target.value) })
                 }
-                className="w-full max-w-xs rounded-lg border border-app app-input-bg px-3 py-2 text-sm outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-ring)]/30"
+                className="w-full max-w-full rounded-lg border border-app app-input-bg px-3 py-2 text-sm outline-none focus:border-[var(--theme-primary)] focus:ring-2 focus:ring-[var(--theme-ring)]/30 sm:max-w-xs"
               />
             </label>
           </div>
@@ -338,7 +399,7 @@ function RubricPane({
                       )
                     }
                     placeholder="What the AI should look for (sent to the model)"
-                    className="min-w-[12rem] flex-1 rounded-md border border-app app-surface px-2 py-1.5 text-sm"
+                    className="min-w-0 w-full flex-1 rounded-md border border-app app-surface px-2 py-1.5 text-sm sm:min-w-[12rem]"
                   />
                 </div>
               </div>
@@ -712,15 +773,15 @@ export function TeacherIdeWorkspace() {
   const activeTitle = selectedExercise?.data.title ?? "—";
 
   return (
-    <main className="app-bg flex h-screen w-screen overflow-hidden antialiased">
+    <main className="app-bg flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden antialiased md:h-screen md:max-h-none md:flex-row">
       <GradingFunLoader phase={loaderPhase} />
       <SideNav active={nav} onSelect={selectNav} canUseSubmissions={canUseSubmissions} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="app-header flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-app px-4 py-3 sm:px-6">
-          <div>
+          <div className="min-w-0">
             <h1 className="text-sm font-semibold app-text">✨ Teacher workspace</h1>
-            <p className="text-xs app-text-muted">
+            <p className="text-xs app-text-muted max-sm:line-clamp-2">
               Library → pick exercise → submissions → drafts
               {canUseSubmissions ? (
                 <>
@@ -756,7 +817,7 @@ export function TeacherIdeWorkspace() {
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:p-6 md:pb-6">
           {nav === "dashboard" && (
             <StudentDashboard
               records={state.studentRecords}
@@ -873,11 +934,11 @@ export function TeacherIdeWorkspace() {
 
       {state.exerciseForm.open ? (
         <div
-          className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/45 p-4 backdrop-blur-[2px]"
+          className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/45 p-3 backdrop-blur-[2px] sm:p-4"
           role="dialog"
           aria-modal
         >
-          <div className="my-4 w-full max-w-5xl rounded-2xl border border-app app-surface p-6 shadow-2xl">
+          <div className="my-2 max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl overflow-y-auto rounded-2xl border border-app app-surface p-4 shadow-2xl sm:my-4 sm:p-6">
             <div className="mb-4 flex items-center justify-between gap-4">
               <h2 className="text-base font-bold app-text">
                 {state.exerciseForm.mode === "create" ? "➕ New exercise" : "✏️ Edit exercise"}
@@ -909,6 +970,8 @@ export function TeacherIdeWorkspace() {
           </div>
         </div>
       ) : null}
+
+      <MobileBottomNav active={nav} onSelect={selectNav} canUseSubmissions={canUseSubmissions} />
     </main>
   );
 }
